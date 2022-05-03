@@ -1,0 +1,2 @@
+class DomashkaBotException(Exception):
+    pass
