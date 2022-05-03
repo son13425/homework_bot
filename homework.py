@@ -1,9 +1,6 @@
-import json
 import logging
 import os
-import sys
 import requests
-import telegram
 import time
 
 from dotenv import load_dotenv
@@ -33,10 +30,12 @@ HOMEWORK_STATUSES = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
+
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     bot.send_message(TELEGRAM_CHAT_ID, message)
     logging.info('Сообщение отправлено')
+
 
 def get_api_answer(current_timestamp):
     """Делает запрос к эндпоинту API-сервиса."""
@@ -57,12 +56,14 @@ def get_api_answer(current_timestamp):
     response = homework_statuses.json()
     return response
 
+
 def check_response(response):
     """Проверяет ответ API на корректность и выдает список домашек."""
     if response.get('homeworks') is None:
         logging.error('Ключ словаря не найден!')
         raise DomashkaBotException('Ключ словаря не найден!')
     return response.get('homeworks')
+
 
 def parse_status(homework):
     """Извлекает статус домашки и возвращает строчку для отправки."""
@@ -73,34 +74,36 @@ def parse_status(homework):
         return f'Изменился статус проверки работы "{homework_name}". {verdict}'
     else:
         logging.error('Неизвестный статус домашки!')
-        raise DomashkaBotException('Неизвестный статус домашки!')        
+        raise DomashkaBotException('Неизвестный статус домашки!')
+
 
 def check_tokens():
     """
     Проверяет доступность переменных окружения,
     которые необходимы для работы программы.
     """
-    if PRACTICUM_TOKEN == None:
+    if PRACTICUM_TOKEN is None:
         logging.critical(
             'Отсутствует обязательная переменная окружения: PRACTICUM_TOKEN'
         )
         return False
-    elif TELEGRAM_TOKEN == None:
+    elif TELEGRAM_TOKEN is None:
         logging.critical(
             'Отсутствует обязательная переменная окружения: TELEGRAM_TOKEN'
         )
         return False
-    elif TELEGRAM_CHAT_ID == None:
+    elif TELEGRAM_CHAT_ID is None:
         logging.critical(
             'Отсутствует обязательная переменная окружения: TELEGRAM_CHAT_ID'
         )
         return False
     return True
 
+
 def main():
     """Основная логика работы бота."""
 
-    bot = telegram.Bot(token=TELEGRAM_TOKEN)
+    bot = Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
 
     while True:
@@ -115,6 +118,7 @@ def main():
             time.sleep(RETRY_TIME)
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
+            logging.error(message)
             time.sleep(RETRY_TIME)
         else:
             global time_sleep_error
