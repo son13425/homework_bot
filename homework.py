@@ -50,7 +50,7 @@ def get_api_answer(current_timestamp):
     except ConnectionError:
         logging.error('Эндпоинт недоступен!')
         raise DomashkaBotException('Эндпоинт недоступен!')
-    except:
+    except Exception:
         logging.error('Сбой при запросе к эндпоинту!')
         raise DomashkaBotException('Сбой при запросе к эндпоинту!')
     response = homework_statuses.json()
@@ -78,10 +78,7 @@ def parse_status(homework):
 
 
 def check_tokens():
-    """
-    Проверяет доступность переменных окружения,
-    которые необходимы для работы программы.
-    """
+    """Проверяет доступность переменных окружения."""
     if PRACTICUM_TOKEN is None:
         logging.critical(
             'Отсутствует обязательная переменная окружения: PRACTICUM_TOKEN'
@@ -102,7 +99,6 @@ def check_tokens():
 
 def main():
     """Основная логика работы бота."""
-
     bot = Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
 
