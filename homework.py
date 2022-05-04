@@ -4,8 +4,9 @@ import requests
 import time
 
 from dotenv import load_dotenv
-from exceptions import DomashkaBotException
-from telegram import Bot
+from exceptions import HomeworkException
+from http import HTTPStatus
+from telegram import Bot, error
 
 
 logging.basicConfig(
@@ -24,7 +25,7 @@ ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
 
-HOMEWORK_STATUSES = {
+HOMEWORK_VERDICTS = {
     'approved': 'Работа проверена: ревьюеру всё понравилось. Ура!',
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
@@ -33,8 +34,11 @@ HOMEWORK_STATUSES = {
 
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
-    bot.send_message(TELEGRAM_CHAT_ID, message)
-    logging.info('Сообщение отправлено')
+    try:
+        logging.info('Сообщение отправлено')
+        bot.send_message(TELEGRAM_CHAT_ID, message)
+    except error.TelegramError:
+        logging.error('TELEGRAM_CHAT_ID недоступен')
 
 
 def get_api_answer(current_timestamp):
@@ -47,15 +51,15 @@ def get_api_answer(current_timestamp):
             headers=HEADERS,
             params=params
         )
-        if homework_statuses.status_code != 200:
+        if homework_statuses.status_code != HTTPStatus.OK:
             logging.error('API возвращает код, отличный от 200!')
-            raise DomashkaBotException('API возвращает код, отличный от 200!')
+            raise HomeworkException('API возвращает код, отличный от 200!')
     except ConnectionError:
         logging.error('Эндпоинт недоступен!')
-        raise DomashkaBotException('Эндпоинт недоступен!')
+        raise HomeworkException('Эндпоинт недоступен!')
     except Exception:
         logging.error('Сбой при запросе к эндпоинту!')
-        raise DomashkaBotException('Сбой при запросе к эндпоинту!')
+        raise HomeworkException('Сбой при запросе к эндпоинту!')
     response = homework_statuses.json()
     return response
 
@@ -64,10 +68,10 @@ def check_response(response):
     """Проверяет ответ API на корректность и выдает список домашек."""
     if response['homeworks'] is None:
         logging.error('Ключ словаря не найден!')
-        raise DomashkaBotException('Ключ словаря не найден!')
+        raise HomeworkException('Ключ словаря не найден!')
     elif isinstance(response['homeworks'], list) is False:
         logging.error('Ответ API не вляется списком!')
-        raise DomashkaBotException('Ответ API не вляется списком!')
+        raise HomeworkException('Ответ API не вляется списком!')
     return response['homeworks']
 
 
@@ -75,12 +79,12 @@ def parse_status(homework):
     """Извлекает статус домашки и возвращает строчку для отправки."""
     homework_name = homework['homework_name']
     homework_status = homework['status']
-    if homework_status in HOMEWORK_STATUSES:
-        verdict = HOMEWORK_STATUSES[homework_status]
+    if homework_status in HOMEWORK_VERDICTS:
+        verdict = HOMEWORK_VERDICTS[homework_status]
         return f'Изменился статус проверки работы "{homework_name}". {verdict}'
     else:
         logging.error('Неизвестный статус домашки!')
-        raise DomashkaBotException('Неизвестный статус домашки!')
+        raise HomeworkException('Неизвестный статус домашки!')
 
 
 def check_tokens():
@@ -114,7 +118,7 @@ def main():
             homeworks = check_response(response)
             if homeworks[0] is None:
                 logging.error('Нет сообщения для отправки!')
-                raise DomashkaBotException('Список домашек пуст!')
+                raise HomeworkException('Список домашек пуст!')
             send_message(bot, parse_status(homeworks[0]))
             current_timestamp = response['current_date']
             time.sleep(RETRY_TIME)
