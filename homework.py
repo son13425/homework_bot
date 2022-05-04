@@ -47,6 +47,9 @@ def get_api_answer(current_timestamp):
             headers=HEADERS,
             params=params
         )
+        if homework_statuses.status_code != 200:
+            logging.error('API возвращает код, отличный от 200!')
+            raise DomashkaBotException('API возвращает код, отличный от 200!')
     except ConnectionError:
         logging.error('Эндпоинт недоступен!')
         raise DomashkaBotException('Эндпоинт недоступен!')
@@ -59,10 +62,13 @@ def get_api_answer(current_timestamp):
 
 def check_response(response):
     """Проверяет ответ API на корректность и выдает список домашек."""
-    if response.get('homeworks') is None:
+    if response['homeworks'] is None:
         logging.error('Ключ словаря не найден!')
         raise DomashkaBotException('Ключ словаря не найден!')
-    return response.get('homeworks')
+    elif isinstance(response['homeworks'], list) is False:
+        logging.error('Ответ API не вляется списком!')
+        raise DomashkaBotException('Ответ API не вляется списком!')
+    return response['homeworks']
 
 
 def parse_status(homework):
