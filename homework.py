@@ -34,16 +34,20 @@ HOMEWORK_VERDICTS = {
 # кастомный хендлер
 class TelegramBotHandler(Handler):
     """Отправляет сообщение об ошибке в телеграм."""
+
     def __init__(self, token: str, chat_id: str):
+        """Задает доступы к чатам."""
         super().__init__()
         self.token = token
         self.chat_id = chat_id
 
     def emit(self, record: LogRecord):
+        """Отправляет сообщение в телеграм."""
         bot = telebot.TeleBot(self.token)
         bot.send_message(self.chat_id, self.format(record))
 
     def __str__(self) -> str:
+        """Описание класса."""
         return 'Handler for sending logs to telegram'
 
 
@@ -213,7 +217,7 @@ def main():
     """Основная логика работы бота."""
     logger1.info('Start Bot')
     bot = Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time())-30*24*60*60
+    current_timestamp = int(time.time())
     try:
         response = get_api_answer(current_timestamp)
         homeworks = check_response(response)
