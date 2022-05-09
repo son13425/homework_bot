@@ -30,6 +30,7 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
+
 # кастомный хендлер
 class TelegramBotHandler(Handler):
     """Отправляет сообщение об ошибке в телеграм."""
@@ -87,7 +88,7 @@ logger2 = logging.getLogger('my_telegram_logger')
 
 
 # кастомный декоратор
-def sleep_error(timeout, retry=1):
+def sleep_error(timeout, retry=3):
     """Повторяет действие с паузой в 30сек в случае ошибки."""
     def time_sleep_error(function):
         def wrapper(*args, **kwargs):
@@ -212,7 +213,7 @@ def main():
     """Основная логика работы бота."""
     logger1.info('Start Bot')
     bot = Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time())
+    current_timestamp = int(time.time())-30*24*60*60
     try:
         response = get_api_answer(current_timestamp)
         homeworks = check_response(response)
@@ -221,7 +222,6 @@ def main():
         else:
             logger2.error('The homework list is empty')
         current_timestamp = response['current_date']
-        time.sleep(RETRY_TIME)
     except IndexError:
         error_text = 'List index out of range'
         logger2.error(error_text)
@@ -230,6 +230,8 @@ def main():
         message = f'Program malfunction: {error}'
         logger2.error(message, traceback.format_exc())
         raise HomeworkException(message)
+    else:
+        time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':
