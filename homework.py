@@ -9,8 +9,6 @@ from http import HTTPStatus
 from telegram import Bot, error
 
 
-load_dotenv()
-
 logging.basicConfig(
     format='%(asctime)s %(levelname)s %(message)s',
     filename='main.log',
@@ -18,6 +16,8 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+load_dotenv()
 
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -56,11 +56,12 @@ def sleep_error(timeout, retry=3):
 
 def sending_error_to_telegram(message):
     """Отправляет сообщение об ошибке в телеграм."""
+    bot = Bot(token=TELEGRAM_TOKEN)
     previous_error = ""
     while True:
         new_error = message
         if new_error != previous_error:
-            Bot(TELEGRAM_TOKEN).send_message(TELEGRAM_CHAT_ID, message)
+            bot.send_message(TELEGRAM_CHAT_ID, message)
             previous_error = new_error
 
 
@@ -72,11 +73,9 @@ def send_message(bot, message):
     except error.TelegramError:
         message_telegram_error = 'TELEGRAM_CHAT_ID is not available'
         logger.error(message_telegram_error)
-        sending_error_to_telegram(message_telegram_error)
     except Exception:
         message_exception_error = 'Error sending the message'
         logger.error(message_exception_error)
-        sending_error_to_telegram(message_exception_error)
 
 
 def get_api_answer(current_timestamp):
@@ -95,15 +94,13 @@ def get_api_answer(current_timestamp):
                 f'The API returned the code {homework_statuses.status_code}'
             )
             logger.error(text_error)
-            sending_error_to_telegram(text_error)
+            raise HomeworkException(text_error)
     except ConnectionError:
         message_connection_error = 'The endpoint is unavailable'
         logger.error(message_connection_error)
-        sending_error_to_telegram(message_connection_error)
     except Exception:
         message_exception_error = 'Failure when requesting an endpoint'
         logger.error(message_exception_error)
-        sending_error_to_telegram(message_exception_error)
         raise HomeworkException(message_exception_error)
     response = homework_statuses.json()
     logger.info('API response received')
@@ -113,15 +110,15 @@ def get_api_answer(current_timestamp):
 def check_response(response):
     """Проверка ответа API на корректность и выдача списка домашек."""
     logger.info('Checking the correctness of the API response')
-    if response.get('homeworks') is None:
-        error_text = 'Dictionary key not found'
-        logger.error(error_text)
-        sending_error_to_telegram(error_text)
-        raise HomeworkException(error_text)
+    try:
+        response['homeworks']
+    except KeyError:
+        message_error = 'Key not found'
+        logger.error(message_error)
+        raise HomeworkException(message_error)
     if isinstance(response['homeworks'], list) is False:
         error_message = 'The API response is not a list'
         logger.error(error_message)
-        sending_error_to_telegram(error_message)
         raise HomeworkException(error_message)
     logger.info('The API response is correct. Received a list of homework')
     return response['homeworks']
@@ -130,37 +127,35 @@ def check_response(response):
 def parse_status(homework):
     """Извлекает статус домашки и возвращает строчку для отправки."""
     logger.info('Determining the status of homework')
-    try:
-        homework_name = homework['homework_name']
-        homework_status = homework['status']
-    except KeyError:
-        message_error = 'Key not found'
-        logger.error(message_error)
-        sending_error_to_telegram(message_error)
-        raise HomeworkException(message_error)
-    else:
-        if homework_status in HOMEWORK_VERDICTS:
-            verdict = HOMEWORK_VERDICTS[homework_status]
-            logger.info('Received the text for the message')
-            return (
-                f'Изменился статус проверки работы "{homework_name}". '
-                f'{verdict}'
-            )
-        message_text = 'Unknown homework status'
-        logger.error(message_text)
-        sending_error_to_telegram(message_text)
-        raise HomeworkException(message_text)
+    homework_name = homework.get('homework_name')
+    if homework_name is None:
+        homework_name_error = 'Key "homework_name" not found'
+        logger.error(homework_name_error)
+        raise KeyError(homework_name_error)
+    homework_status = homework.get('status')
+    if homework_name is None:
+        homework_status_error = 'Key "status" not found'
+        logger.error(homework_status_error)
+        raise KeyError(homework_status_error)
+    if homework_status in HOMEWORK_VERDICTS:
+        verdict = HOMEWORK_VERDICTS[homework_status]
+        logger.info('Received the text for the message')
+        return (
+            f'Изменился статус проверки работы "{homework_name}". '
+            f'{verdict}'
+        )
+    message_text = 'Unknown homework status!'
+    logger.error(message_text)
+    raise HomeworkException(message_text)
 
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
     logger.info('Checking the availability of environment variables')
     if PRACTICUM_TOKEN is None:
-        text_error = (
+        logger.critical(
             'Required environment variable is missing: PRACTICUM_TOKEN'
         )
-        logger.critical(text_error)
-        sending_error_to_telegram(text_error)
         return False
     if TELEGRAM_TOKEN is None:
         logger.critical(
@@ -181,7 +176,7 @@ def main():
     """Основная логика работы бота."""
     logger.info('Start Bot')
     bot = Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time()) - RETRY_TIME
+    current_timestamp = int(time.time())
     try:
         response = get_api_answer(current_timestamp)
         homeworks = check_response(response)
@@ -197,12 +192,10 @@ def main():
         error_text = 'List index out of range'
         logger.error(error_text)
         sending_error_to_telegram(error_text)
-        raise HomeworkException(error_text)
     except Exception as error:
         message = f'Program malfunction: {error}'
         logger.error(message)
         sending_error_to_telegram(message)
-        raise HomeworkException(message)
 
 
 if __name__ == '__main__':
