@@ -177,7 +177,7 @@ def main():
             text_error = 'The homework list is empty'
             logger.error(text_error)
             if text_error != previous_message:
-                send_message(bot, text_error)
+                bot.send_message(TELEGRAM_CHAT_ID, text_error)
                 previous_message = text_error
         current_timestamp = response['current_date']
         time.sleep(RETRY_TIME)
@@ -188,7 +188,7 @@ def main():
         message = f'Program malfunction: {error}'
         logger.error(message)
         if message != previous_error:
-            send_message(bot, message)
+            bot.send_message(TELEGRAM_CHAT_ID, message)
             previous_error = message
     time.sleep(RETRY_TIME)
 
