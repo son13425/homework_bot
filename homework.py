@@ -54,17 +54,6 @@ def sleep_error(timeout, retry=3):
     return time_sleep_error
 
 
-def sending_error_to_telegram(message):
-    """Отправляет сообщение об ошибке в телеграм."""
-    bot = Bot(token=TELEGRAM_TOKEN)
-    previous_error = ""
-    while True:
-        new_error = message
-        if new_error != previous_error:
-            bot.send_message(TELEGRAM_CHAT_ID, message)
-            previous_error = new_error
-
-
 def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
@@ -177,6 +166,8 @@ def main():
     logger.info('Start Bot')
     bot = Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
+    previous_error = ""
+    previous_message = ""
     try:
         response = get_api_answer(current_timestamp)
         homeworks = check_response(response)
@@ -185,17 +176,21 @@ def main():
         else:
             text_error = 'The homework list is empty'
             logger.error(text_error)
-            sending_error_to_telegram(text_error)
+            if text_error != previous_message:
+                send_message(bot, text_error)
+                previous_message = text_error
         current_timestamp = response['current_date']
         time.sleep(RETRY_TIME)
     except IndexError:
         error_text = 'List index out of range'
         logger.error(error_text)
-        sending_error_to_telegram(error_text)
     except Exception as error:
         message = f'Program malfunction: {error}'
         logger.error(message)
-        sending_error_to_telegram(message)
+        if message != previous_error:
+            send_message(bot, message)
+            previous_error = message
+    time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':
