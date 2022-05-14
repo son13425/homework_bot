@@ -58,7 +58,7 @@ def send_message(bot, message):
     """Отправляет сообщение в Telegram чат."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        logger.info('The message has been sent')
+        return 'The message has been sent'
     except error.TelegramError:
         message_telegram_error = 'TELEGRAM_CHAT_ID is not available'
         logger.error(message_telegram_error)
@@ -173,12 +173,14 @@ def main():
         homeworks = check_response(response)
         if len(homeworks) > 0:
             send_message(bot, parse_status(homeworks[0]))
+            logger.info('The message has been sent')
         else:
             text_error = 'The homework list is empty'
             logger.error(text_error)
             if text_error != previous_message:
-                bot.send_message(TELEGRAM_CHAT_ID, text_error)
-                previous_message = text_error
+                message_error = send_message(bot, text_error)
+                if message_error == 'The message has been sent':
+                    previous_message = text_error
         current_timestamp = response['current_date']
         time.sleep(RETRY_TIME)
     except IndexError:
@@ -188,8 +190,9 @@ def main():
         message = f'Program malfunction: {error}'
         logger.error(message)
         if message != previous_error:
-            bot.send_message(TELEGRAM_CHAT_ID, message)
-            previous_error = message
+            message_error = send_message(bot, message)
+            if message_error == 'The message has been sent':
+                previous_error = message
     time.sleep(RETRY_TIME)
 
 
